@@ -171,8 +171,21 @@ def execute():
             # Non-json stderr line (maybe a Python stacktrace) - ignore here, but capture
             pass
 
+    # If error information provided:
+    if exec_error:
+        return jsonify({"error": exec_error, "stdout": stdout}), 400
+
+    if result is None:
+        # No result found - treat as error. Give captured stderr & stdout for debugging.
+        # If stderr has content we didn't parse, include limited content.
+        short_stderr = stderr.strip()
+        return jsonify({
+            "error": "No JSON result found from script (expected runner to write result JSON to stderr)",
+            "stderr": short_stderr[:2000],
+            "stdout": stdout
+        }), 400
     
-    
+    # Success
     return jsonify({"result": result, "stdout": stdout}), 200
 
 if __name__ == "__main__":
