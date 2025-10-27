@@ -130,6 +130,20 @@ def execute():
         runner_path
     ]
 
+    # Execute nsjail
+    try:
+        proc = subprocess.Popen(
+            nsjail_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=tmpdir,
+            text=True
+        )
+    except FileNotFoundError as e:
+        return jsonify({"error": f"nsjail binary not found at {NSJAIL_PATH}. Is nsjail installed in the container?"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Failed to start nsjail: {e}"}), 500
+
 
     result,exec_error  = None, None
     
