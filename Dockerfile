@@ -44,6 +44,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Expose 8080 (Cloud Run expects PORT env or 8080)
 EXPOSE 8080
 ENV PORT=8080
+# Create writable tmp directory for script execution
+RUN mkdir -p /app/tmp && chmod 777 /app/tmp
 # Use a non-root user for running the Flask app
 RUN groupadd -r app && useradd -r -g app app
 USER app

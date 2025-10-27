@@ -16,8 +16,8 @@ TIME_LIMIT_SECONDS = 5
 MEMORY_LIMIT_BYTES = 512 * 1024 * 1024
 CPU_TIME_LIMIT = 5
 NSJAIL_PATH = "/usr/sbin/nsjail"
-PYTHON_BIN = "/usr/local/bin/python" if os.path.exists("/usr/local/bin/python") else "/usr/bin/python3"
-
+#PYTHON_BIN = "/usr/local/bin/python" if os.path.exists("/usr/local/bin/python") else "/usr/bin/python3"
+PYTHON_BIN = "/usr/local/bin/python3"
 
 
 def validate_script_has_main(script_src: str):
@@ -55,7 +55,11 @@ def execute():
     
     # Create a temp directory to hold script and runner
     run_id = str(uuid.uuid4())
-    tmpdir = tempfile.mkdtemp(prefix=f"exec_{run_id}_")
+    #tmpdir = tempfile.mkdtemp(prefix=f"exec_{run_id}_")
+    base_tmp = os.path.join(os.getcwd(), "tmp")
+    os.makedirs(base_tmp, exist_ok=True)
+    tmpdir = tempfile.mkdtemp(prefix=f"exec_{run_id}_", dir=base_tmp)
+
 
     user_script_path = os.path.join(tmpdir, "user_script.py")
     runner_path = os.path.join(tmpdir, "runner.py")
@@ -113,22 +117,48 @@ def execute():
         f.write(runner_code)
 
     # Build nsjail command
+    
+    #nsjail_cmd = [
+    #    NSJAIL_PATH,
+    #    "--stderr_to_null", "false",          # keep stderr
+    #    "--cwd", tmpdir,
+    #    "--time_limit", str(TIME_LIMIT_SECONDS),
+    #    "--rlimit_as", str(MEMORY_LIMIT_BYTES),
+    #    "--rlimit_cpu", str(CPU_TIME_LIMIT),
+    #    "--max_cpus", "1",
+    #    # network isolation flags - if nsjail supports them
+    #    "--disable_clone_newnet",
+    #    "--user", "65534",
+    #    "--group", "65534",
+    #    "--",  # end of nsjail options, program follows
+    #    PYTHON_BIN,
+    #    runner_path
+    #]
+    
+
     nsjail_cmd = [
         NSJAIL_PATH,
-        "--stderr_to_null", "false",          # keep stderr
+        "--stderr_to_null", "false",
         "--cwd", tmpdir,
         "--time_limit", str(TIME_LIMIT_SECONDS),
         "--rlimit_as", str(MEMORY_LIMIT_BYTES),
         "--rlimit_cpu", str(CPU_TIME_LIMIT),
         "--max_cpus", "1",
-        # network isolation flags - if nsjail supports them
         "--disable_clone_newnet",
         "--user", "65534",
         "--group", "65534",
-        "--",  # end of nsjail options, program follows
+        "--bindmount", "/app/tmp",
+        "--bindmount_ro", "/usr",
+        "--",  # end of nsjail flags
         PYTHON_BIN,
         runner_path
     ]
+
+    print("Running nsjail command:", " ".join(nsjail_cmd))
+    print("NSJAIL_PATH exists:", os.path.exists(NSJAIL_PATH))
+    print("PYTHON_BIN exists:", os.path.exists(PYTHON_BIN))
+    print("Runner exists:", os.path.exists(runner_path))
+    sys.stdout.flush()      
 
     # Execute nsjail
     try:
