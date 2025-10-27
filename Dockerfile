@@ -1,53 +1,40 @@
-# Use slim Python image to keep it small
-FROM debian:bookworm-slim AS builder
+# Use slim Python image
+FROM python:3.11-slim
 
-# Install system deps
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
     protobuf-compiler \
     libprotobuf-dev \
     libnl-route-3-dev \
-    libtool \
-    autoconf \
-    automake \
-    bison \
-    flex \
-    pkg-config \
-    ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Clone and build nsjail
+# Build nsjail from source
 RUN git clone https://github.com/google/nsjail.git /tmp/nsjail && \
     cd /tmp/nsjail && make && \
-    cp nsjail /usr/local/bin/nsjail
+    cp nsjail /usr/sbin/nsjail
 
-
-FROM python:3.11-slim
-
-# Create app directory
+# Set working directory
 WORKDIR /app
-# Install minimal runtime deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libprotobuf-dev \
-    libnl-route-3-dev \
-    ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
 
-# Copy nsjail binary from builder stage
-COPY --from=builder /usr/local/bin/nsjail /usr/sbin/nsjail
-
-
-# Copy app
+# Copy app files
 COPY requirements.txt app.py ./
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-# Expose 8080 (Cloud Run expects PORT env or 8080)
-EXPOSE 8080
-ENV PORT=8080
-# Create writable tmp directory for script execution
+
+# Create a writable tmp folder
 RUN mkdir -p /app/tmp && chmod 777 /app/tmp
-# Use a non-root user for running the Flask app
+
+# Expose Cloud Run port
+ENV PORT=8080
+EXPOSE 8080
+
+# Use non-root user for Cloud Run security
 RUN groupadd -r app && useradd -r -g app app
 USER app
-# Use Gunicorn as production WSGI server
+
+# Run Flask with Gunicorn
 CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
