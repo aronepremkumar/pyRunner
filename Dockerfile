@@ -1,10 +1,16 @@
 # Use slim Python image
-FROM python:3.11-slim
+FROM python:3.11-slim AS builder
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
+    pkg-config \
+    autoconf \
+    automake \
+    libtool \
+    bison \
+    flex \
     protobuf-compiler \
     libprotobuf-dev \
     libnl-route-3-dev \
