@@ -13,6 +13,11 @@ app = Flask("PyRunner")
 
 MAX_SCRIPT_SIZE = 200 * 1024
 TIME_LIMIT_SECONDS = 5
+MEMORY_LIMIT_BYTES = 512 * 1024 * 1024
+CPU_TIME_LIMIT = 5
+NSJAIL_PATH = "/usr/sbin/nsjail"
+PYTHON_BIN = "/usr/local/bin/python" if os.path.exists("/usr/local/bin/python") else "/usr/bin/python3"
+
 
 
 def validate_script_has_main(script_src: str):
@@ -106,6 +111,24 @@ def execute():
     # Note: runner writes result JSON to stderr
     with open(runner_path, "w", encoding="utf-8") as f:
         f.write(runner_code)
+
+    # Build nsjail command
+    nsjail_cmd = [
+        NSJAIL_PATH,
+        "--stderr_to_null", "false",          # keep stderr
+        "--cwd", tmpdir,
+        "--time_limit", str(TIME_LIMIT_SECONDS),
+        "--rlimit_as", str(MEMORY_LIMIT_BYTES),
+        "--rlimit_cpu", str(CPU_TIME_LIMIT),
+        "--max_cpus", "1",
+        # network isolation flags - if nsjail supports them
+        "--disable_clone_newnet",
+        "--user", "65534",
+        "--group", "65534",
+        "--",  # end of nsjail options, program follows
+        PYTHON_BIN,
+        runner_path
+    ]
 
 
     result,exec_error  = None, None
