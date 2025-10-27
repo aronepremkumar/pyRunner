@@ -102,7 +102,12 @@ def execute():
     sys.stderr.write(json.dumps({"__result__": result}) + "\n")
     sys.exit(0)
     '''
-    
+        
+    # Note: runner writes result JSON to stderr
+    with open(runner_path, "w", encoding="utf-8") as f:
+        f.write(runner_code)
+
+
     result,exec_error  = None, None
     
     return jsonify({"result": result, "stdout": ""}), 200
