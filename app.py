@@ -145,9 +145,35 @@ def execute():
         return jsonify({"error": f"Failed to start nsjail: {e}"}), 500
 
 
-    result,exec_error  = None, None
+    try:
+        stdout, stderr = proc.communicate(timeout=TIME_LIMIT_SECONDS + 2)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        return jsonify({"error": "Execution timed out"}), 400
     
-    return jsonify({"result": result, "stdout": ""}), 200
+    # Attempt to extract the JSON result from stderr
+    result = None
+    exec_error = None
+    # Search stderr lines for JSON with "__result__" or "__error__"
+    for line in stderr.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            parsed = json.loads(line)
+            if "__result__" in parsed:
+                result = parsed["__result__"]
+                break
+            if "__error__" in parsed:
+                exec_error = parsed["__error__"]
+                break
+        except Exception:
+            # Non-json stderr line (maybe a Python stacktrace) - ignore here, but capture
+            pass
+
+    
+    
+    return jsonify({"result": result, "stdout": stdout}), 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
