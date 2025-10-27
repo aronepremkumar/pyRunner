@@ -11,6 +11,7 @@ Response:
   "result": ...,   // JSON-serializable return value from main()
   "stdout": "..."  // text printed by the script during execution
 }
+```
 
 🧱 Build and Run Locally
 1️⃣ Build the Docker image
