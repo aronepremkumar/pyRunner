@@ -55,6 +55,53 @@ def execute():
     user_script_path = os.path.join(tmpdir, "user_script.py")
     runner_path = os.path.join(tmpdir, "runner.py")
     
+    # Write user script
+    with open(user_script_path, "w", encoding="utf-8") as f:
+        # Important: ensure user module name is importable; runner imports 'user_script'
+        f.write(script)
+
+    # Write runner that imports the user_script and executes main()
+        runner_code = r'''
+    import importlib.util
+    import json
+    import sys
+    import traceback
+    from types import ModuleType
+
+    # Import user_script.py from the same directory
+    spec = importlib.util.spec_from_file_location("user_script", "user_script.py")
+    user_mod = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(user_mod)
+    except Exception as e:
+        # Any import-time errors should be reported as an execution failure
+        sys.stderr.write(json.dumps({"__error__": f"Error executing script import: {traceback.format_exc()}})}) + "\n")
+        sys.exit(1)
+
+    if not hasattr(user_mod, "main"):
+        sys.stderr.write(json.dumps({"__error__": "No 'main' function found after import"}) + "\n")
+        sys.exit(1)
+
+    try:
+        # Capture return value of main()
+        result = user_mod.main()
+    except Exception:
+        import traceback as _tb
+        sys.stderr.write(json.dumps({"__error__": f"Error while running main(): {_tb.format_exc()}"}) + "\n")
+        sys.exit(1)
+
+    # Validate result is JSON serializable
+    try:
+        json.dumps(result)
+    except TypeError:
+        sys.stderr.write(json.dumps({"__error__": "Return value from main() is not JSON serializable"}) + "\n")
+        sys.exit(1)
+
+    # Write the JSON-serializable result to stderr as a single JSON line.
+    # stdout remains available for the user's print() output; the parent process will collect both streams.
+    sys.stderr.write(json.dumps({"__result__": result}) + "\n")
+    sys.exit(0)
+    '''
     
     result,exec_error  = None, None
     
